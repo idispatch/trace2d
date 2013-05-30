@@ -36,7 +36,7 @@ struct rectset_t {
 
 typedef struct rectset_t * rectset;
 
-rectset add_rect_to_rectset(rectset r, int col, int row, int w, int h) {
+rectset rectset_add(rectset r, int col, int row, int w, int h) {
     rectset p = (rectset)calloc(sizeof(struct rectset_t), 1);
     p->next = r;
     p->r.pos.column = col;
@@ -46,7 +46,7 @@ rectset add_rect_to_rectset(rectset r, int col, int row, int w, int h) {
     return p;
 }
 
-void free_rectset(rectset r) {
+void rectset_free(rectset r) {
     while(r) {
         rectset t = r->next;
         free(r);
@@ -54,8 +54,8 @@ void free_rectset(rectset r) {
     }
 }
 
-void print_rectset(rectset r) {
-    rectset t = r;
+void rectset_print(rectset r) {
+    fprintf(stdout, "(");
     while(r) {
         fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.column, r->r.pos.row, r->r.w, r->r.h);
         if(r->next) {
@@ -63,12 +63,11 @@ void print_rectset(rectset r) {
         }
         r = r->next;
     }
-    if(t) {
-        fprintf(stdout, "\n");
-    }
+    fprintf(stdout, ")\n");
+    fflush(stdout);
 }
 
-pattern * alloc_pattern(int w, int h) {
+pattern * pattern_alloc(int w, int h) {
     size_t nbytes = sizeof(pattern) + w * h * sizeof(cell_t);
     pattern * p = (pattern*)calloc(nbytes, 1);
     if(!p) {
@@ -80,21 +79,8 @@ pattern * alloc_pattern(int w, int h) {
     return p;
 }
 
-void free_pattern(pattern * p) {
+void pattern_free(pattern * p) {
     free(p);
-}
-
-pattern * pattern_copy(pattern * in) {
-    size_t nbytes = sizeof(pattern) - sizeof(cell_t*) + in->w * in->h * sizeof(cell_t);
-    pattern * p = (pattern*)malloc(nbytes);
-    if(!p) {
-        return p;
-    }
-    p->w = in->w;
-    p->h = in->h;
-    p->data = (cell_t*)(p + 1);
-    memcpy(p->data, in->data, in->w * in->h * sizeof(cell_t));
-    return p;
 }
 
 cell_t pattern_get(pattern * p, int x, int y) {
@@ -138,7 +124,7 @@ void pattern_print(pattern * p) {
     fflush(stdout);
 }
 
-int read_pattern(const char * fname, pattern ** p) {
+int pattern_read(const char * fname, pattern ** p) {
     int rc;
     int w, h;
     int row, column;
@@ -160,7 +146,7 @@ int read_pattern(const char * fname, pattern ** p) {
             break;
         }
 
-        *p = alloc_pattern(w, h);
+        *p = pattern_alloc(w, h);
         if(!*p) {
             rc = -1;
         }
@@ -179,7 +165,7 @@ int read_pattern(const char * fname, pattern ** p) {
     } while(0);
 
     if(rc != 0) {
-        free_pattern(*p);
+        pattern_free(*p);
         *p = NULL;
     }
 
@@ -187,34 +173,34 @@ int read_pattern(const char * fname, pattern ** p) {
     return rc;
 }
 
-void fill_pattern_do(pattern * p, pattern * r, int column, int row, int group) {
+void pattern_fill_do(pattern * p, pattern * r, int column, int row, int group) {
     pattern_set(r, column, row, group);
 
     if(column + 1 < p->w &&
        pattern_get(p, column + 1, row) != 0 &&
        pattern_get(r, column + 1, row) == 0) {
-        fill_pattern_do(p, r, column + 1, row, group);
+        pattern_fill_do(p, r, column + 1, row, group);
     }
     if(column - 1 >= 0 &&
        pattern_get(p, column - 1, row) != 0 &&
        pattern_get(r, column - 1, row) == 0) {
-        fill_pattern_do(p, r, column - 1, row, group);
+        pattern_fill_do(p, r, column - 1, row, group);
     }
     if(row + 1 < p->h &&
        pattern_get(p, column, row + 1) != 0 &&
        pattern_get(r, column, row + 1) == 0) {
-        fill_pattern_do(p, r, column, row + 1, group);
+        pattern_fill_do(p, r, column, row + 1, group);
     }
     if(row - 1 >= 0 &&
        pattern_get(p, column, row - 1) != 0 &&
        pattern_get(r, column, row - 1) == 0) {
-        fill_pattern_do(p, r, column, row - 1, group);
+        pattern_fill_do(p, r, column, row - 1, group);
     }
 }
 
-pattern * fill_pattern(pattern * p) {
+pattern * pattern_fill(pattern * p) {
     int row, col, group = 0;
-    pattern * r = alloc_pattern(p->w, p->h);
+    pattern * r = pattern_alloc(p->w, p->h);
     if(r!=NULL) {
         for(row = 0; row < p->h; ++row) {
             for(col = 0; col < p->w; ++col) {
@@ -224,18 +210,18 @@ pattern * fill_pattern(pattern * p) {
                 v = pattern_get(r, col, row);
                 if(v)
                     continue;
-                fill_pattern_do(p, r, col, row, ++group);
+                pattern_fill_do(p, r, col, row, ++group);
             }
         }
     }
     return r;
 }
 
-rectset calc_rectset(pattern * p) {
+rectset rectset_calc(pattern * p) {
     int row, col, group = 0;
     rectset result = NULL;
 
-    pattern * r = alloc_pattern(p->w, p->h);
+    pattern * r = pattern_alloc(p->w, p->h);
     if(r!=NULL) {
         for(row = 0; row < p->h; ++row) {
             for(col = 0; col < p->w; ++col) {
@@ -245,7 +231,7 @@ rectset calc_rectset(pattern * p) {
                 v = pattern_get(r, col, row);
                 if(v)
                     continue;
-                fill_pattern_do(p, r, col, row, ++group);
+                pattern_fill_do(p, r, col, row, ++group);
             }
         }
 
@@ -279,7 +265,7 @@ rectset calc_rectset(pattern * p) {
                     }
                 }
 
-                result = add_rect_to_rectset(result, col, row, w, h);
+                result = rectset_add(result, col, row, w, h);
             }
         }
     }
@@ -289,30 +275,30 @@ rectset calc_rectset(pattern * p) {
 
 void read_and_print(const char * fname) {
     pattern * p;
-    if(read_pattern(fname, &p) == 0) {
+    if(pattern_read(fname, &p) == 0) {
         pattern_print(p);
-        free_pattern(p);
+        pattern_free(p);
     }
 }
 
 void read_and_fill(const char * fname) {
     pattern *p, *r;
-    if(read_pattern(fname, &p) == 0) {
-        r = fill_pattern(p);
+    if(pattern_read(fname, &p) == 0) {
+        r = pattern_fill(p);
         pattern_print(r);
-        free_pattern(r);
-        free_pattern(p);
+        pattern_free(r);
+        pattern_free(p);
     }
 }
 
-void read_and_calc_rectset(const char * fname) {
+void read_and_rectset_calc(const char * fname) {
     pattern *p;
-    if(read_pattern(fname, &p) == 0) {
-        rectset r = calc_rectset(p);
+    if(pattern_read(fname, &p) == 0) {
+        rectset r = rectset_calc(p);
         pattern_print(p);
-        print_rectset(r);
-        free_rectset(r);
-        free_pattern(p);
+        rectset_print(r);
+        rectset_free(r);
+        pattern_free(p);
     }
 }
 
@@ -325,7 +311,7 @@ int main(int argc, char **argv) {
     for(n = 1; n < argc; ++n) {
         //read_and_print(argv[1]);
         //read_and_fill(argv[n]);
-        read_and_calc_rectset(argv[n]);
+        read_and_rectset_calc(argv[n]);
         fprintf(stdout, "\n");
         fflush(stdout);
     }
