@@ -21,6 +21,53 @@ struct coord_t {
 
 typedef struct coord_t coord;
 
+struct rect_t {
+    coord pos;
+    int w;
+    int h;
+};
+
+typedef struct rect_t rect;
+
+struct rectset_t {
+    rect r;
+    struct rectset_t * next;
+};
+
+typedef struct rectset_t * rectset;
+
+rectset add_rect_to_rectset(rectset r, int col, int row, int w, int h) {
+    rectset p = (rectset)calloc(sizeof(struct rectset_t), 1);
+    p->next = r;
+    p->r.pos.column = col;
+    p->r.pos.row = row;
+    p->r.w = w;
+    p->r.h = h;
+    return p;
+}
+
+void free_rectset(rectset r) {
+    while(r) {
+        rectset t = r->next;
+        free(r);
+        r = t;
+    }
+}
+
+void print_rectset(rectset r) {
+    rectset t = r;
+    while(r) {
+        fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.column, r->r.pos.row, r->r.w, r->r.h);
+        if(r->next) {
+            fprintf(stdout, ",");
+        }
+        r = r->next;
+    }
+    if(t) {
+        fprintf(stdout, "\n");
+    }
+}
+
 pattern * alloc_pattern(int w, int h) {
     size_t nbytes = sizeof(pattern) + w * h * sizeof(cell_t);
     pattern * p = (pattern*)calloc(nbytes, 1);
@@ -184,6 +231,62 @@ pattern * fill_pattern(pattern * p) {
     return r;
 }
 
+rectset calc_rectset(pattern * p) {
+    int row, col, group = 0;
+    rectset result = NULL;
+
+    pattern * r = alloc_pattern(p->w, p->h);
+    if(r!=NULL) {
+        for(row = 0; row < p->h; ++row) {
+            for(col = 0; col < p->w; ++col) {
+                cell_t v = pattern_get(p, col, row);
+                if(!v)
+                    continue;
+                v = pattern_get(r, col, row);
+                if(v)
+                    continue;
+                fill_pattern_do(p, r, col, row, ++group);
+            }
+        }
+
+        /* pattern r contains 4-connected components and group is the count of them */
+        for(row = 0; row < p->h; ++row) {
+            for(col = 0; col < p->w; ++col) {
+                cell_t group = pattern_get(r, col, row);
+                if(!group)
+                    continue;
+                int i = col + 1, j;
+                int w, h = p->h;
+                while(i < p->w && pattern_get(r, i, row) == group) {
+                    i++;
+                }
+                i--;
+                w = i - col + 1;
+
+                for(i = col; i < col + w; ++i) {
+                    for(j = row + 1; j < p->h && pattern_get(r, i, j) == group; j++);
+                    j--;
+                    if(h > j) {
+                        h = j;
+                    }
+                }
+                h = h - row + 1;
+
+                /* rectangle is at (col,row) and size is w x h */
+                for(j = row; j < row + h; ++j) {
+                    for(i = col; i < col + w; ++i) {
+                        pattern_set(r, i, j, 0);
+                    }
+                }
+
+                result = add_rect_to_rectset(result, col, row, w, h);
+            }
+        }
+    }
+
+    return result;
+}
+
 void read_and_print(const char * fname) {
     pattern * p;
     if(read_pattern(fname, &p) == 0) {
@@ -202,6 +305,17 @@ void read_and_fill(const char * fname) {
     }
 }
 
+void read_and_calc_rectset(const char * fname) {
+    pattern *p;
+    if(read_pattern(fname, &p) == 0) {
+        rectset r = calc_rectset(p);
+        pattern_print(p);
+        print_rectset(r);
+        free_rectset(r);
+        free_pattern(p);
+    }
+}
+
 int main(int argc, char **argv) {
     if(argc < 2) {
         fprintf(stderr, "Invalid arguments\n");
@@ -210,7 +324,8 @@ int main(int argc, char **argv) {
     int n;
     for(n = 1; n < argc; ++n) {
         //read_and_print(argv[1]);
-        read_and_fill(argv[n]);
+        //read_and_fill(argv[n]);
+        read_and_calc_rectset(argv[n]);
         fprintf(stdout, "\n");
         fflush(stdout);
     }
