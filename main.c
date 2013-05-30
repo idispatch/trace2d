@@ -141,16 +141,26 @@ int read_pattern(const char * fname, pattern ** p) {
 }
 
 void fill_pattern_do(pattern * p, pattern * r, int column, int row, int group) {
-    if(row < 0 || row >= p->h) return;
-    if(column < 0 || column >= p->w) return;
+    pattern_set(r, column, row, group);
 
-    if(pattern_get(p, column, row) != 0 &&
-       pattern_get(r, column, row) == 0) {
-        pattern_set(r, column, row, group);
-
+    if(column + 1 < p->w &&
+       pattern_get(p, column + 1, row) != 0 &&
+       pattern_get(r, column + 1, row) == 0) {
         fill_pattern_do(p, r, column + 1, row, group);
+    }
+    if(column - 1 >= 0 &&
+       pattern_get(p, column - 1, row) != 0 &&
+       pattern_get(r, column - 1, row) == 0) {
         fill_pattern_do(p, r, column - 1, row, group);
+    }
+    if(row + 1 < p->h &&
+       pattern_get(p, column, row + 1) != 0 &&
+       pattern_get(r, column, row + 1) == 0) {
         fill_pattern_do(p, r, column, row + 1, group);
+    }
+    if(row - 1 >= 0 &&
+       pattern_get(p, column, row - 1) != 0 &&
+       pattern_get(r, column, row - 1) == 0) {
         fill_pattern_do(p, r, column, row - 1, group);
     }
 }
