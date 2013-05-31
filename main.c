@@ -405,6 +405,7 @@ int main(int argc, char **argv) {
             break;
         case 'r':
             mode = ch;
+            break;
         case '?':
         default:
             fprintf(stderr, "Invalid argument\n");
