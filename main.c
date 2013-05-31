@@ -139,7 +139,7 @@ static unsigned int pattern_hash(pattern * p) {
     unsigned result = 0;
     for(row = min_row; row < min_row + size; ++row) {
         for(col = min_col; col < min_col + size; ++col) {
-            if(pattern_get(p, col, row) != 0) {
+            if(col < p->w && row < p->h && pattern_get(p, col, row) != 0) {
                 result |= 1;
             }
             result <<= 1;
