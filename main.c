@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#define CHECK_BOUNDS 1
+
 typedef int cell_t;
 
 struct pattern_t {
@@ -84,35 +86,37 @@ void pattern_free(pattern * p) {
 }
 
 cell_t pattern_get(pattern * p, int x, int y) {
+#if CHECK_BOUNDS
     if(!p) {
         return 0;
     }
-    if(x < 0 || x >= p->w) {
-        return 0;
+    if(x < 0 || x >= p->w || y < 0 || y >= p->h) {
+        fprintf(stderr, "Out of bounds: %d, %d (%d, %d)\n", x, y, p->w, p->h);
+        abort();
     }
-    if(y < 0 || y >= p->h) {
-        return 0;
-    }
-    return p->data[x + y*p->w];
+#endif
+    return p->data[x + y * p->w];
 }
 
 void pattern_set(pattern * p, int x, int y, cell_t v) {
+#if CHECK_BOUNDS
     if(!p) {
         return;
     }
-    if(x < 0 || x >= p->w) {
-        return;
+    if(x < 0 || x >= p->w || y < 0 || y >= p->h) {
+        fprintf(stderr, "Out of bounds: %d, %d (%d, %d)\n", x, y, p->w, p->h);
+        abort();
     }
-    if(y < 0 || y >= p->h) {
-        return;
-    }
-    p->data[x + y*p->w] = v;
+#endif
+    p->data[x + y * p->w] = v;
 }
 
 void pattern_print(pattern * p) {
+#if CHECK_BOUNDS
     if(!p) {
         return;
     }
+#endif
     int row, column;
     for(row = 0; row < p->h; row++) {
         for(column = 0; column < p->w; column++) {
@@ -222,51 +226,50 @@ rectset rectset_calc(pattern * p) {
     rectset result = NULL;
 
     pattern * r = pattern_alloc(p->w, p->h);
-    if(r!=NULL) {
-        for(row = 0; row < p->h; ++row) {
-            for(col = 0; col < p->w; ++col) {
-                cell_t v = pattern_get(p, col, row);
-                if(!v)
-                    continue;
-                v = pattern_get(r, col, row);
-                if(v)
-                    continue;
-                pattern_fill_do(p, r, col, row, ++group);
-            }
+    if(!r)
+        return result;
+
+    for(row = 0; row < p->h; ++row) {
+        for(col = 0; col < p->w; ++col) {
+            cell_t v = pattern_get(p, col, row);
+            if(!v)
+                continue;
+            v = pattern_get(r, col, row);
+            if(v)
+                continue;
+            pattern_fill_do(p, r, col, row, ++group);
         }
+    }
 
-        /* pattern r contains 4-connected components and group is the count of them */
-        for(row = 0; row < p->h; ++row) {
-            for(col = 0; col < p->w; ++col) {
-                cell_t group = pattern_get(r, col, row);
-                if(!group)
-                    continue;
-                int i = col + 1, j;
-                int w, h = p->h;
-                while(i < p->w && pattern_get(r, i, row) == group) {
-                    i++;
-                }
-                i--;
-                w = i - col + 1;
-
-                for(i = col; i < col + w; ++i) {
-                    for(j = row + 1; j < p->h && pattern_get(r, i, j) == group; j++);
-                    j--;
-                    if(h > j) {
-                        h = j;
-                    }
-                }
-                h = h - row + 1;
-
-                /* rectangle is at (col,row) and size is w x h */
-                for(j = row; j < row + h; ++j) {
-                    for(i = col; i < col + w; ++i) {
-                        pattern_set(r, i, j, 0);
-                    }
-                }
-
-                result = rectset_add(result, col, row, w, h);
+    /* pattern r contains 4-connected components and group is the count of them */
+    for(row = 0; row < p->h; ++row) {
+        for(col = 0; col < p->w; ++col) {
+            cell_t group = pattern_get(r, col, row);
+            if(!group)
+                continue;
+            int i = col + 1, j;
+            int w, h = p->h;
+            while(i < p->w && pattern_get(r, i, row) == group) {
+                i++;
             }
+            i--;
+            w = i - col + 1;
+
+            for(i = col; i < col + w; ++i) {
+                for(j = row + 1; j < p->h && pattern_get(r, i, j) == group; j++);
+                j--;
+                if(h > j) {
+                    h = j;
+                }
+            }
+            h = h - row + 1;
+
+            /* rectangle is at (col,row) and size is w x h */
+            for(j = row; j < row + h; ++j)
+                for(i = col; i < col + w; ++i)
+                    pattern_set(r, i, j, 0);
+
+            result = rectset_add(result, col, row, w, h);
         }
     }
 
