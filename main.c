@@ -60,9 +60,9 @@ static void rectset_free(rectset r) {
 static void rectset_print(rectset r) {
     fprintf(stdout, "(");
     while(r) {
-        fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.col, r->r.pos.row, r->r.w, r->r.h);
+        fprintf(stdout, "[x=%d,y=%d,w=%d,h=%d]", r->r.pos.col, r->r.pos.row, r->r.w, r->r.h);
         if(r->next) {
-            fprintf(stdout, ",");
+            fprintf(stdout, ",\n ");
         }
         r = r->next;
     }
@@ -130,7 +130,7 @@ static unsigned int pattern_hash(pattern * p) {
                 max_col = col;
         }
     }
-#if 1
+#if 0
 	fprintf(stdout, "min_col=%d,min_row=%d,max_col=%d,max_row=%d\n", min_col, min_row, max_col, max_row);
 #endif
     max_col = max_col - min_col + 1;
@@ -163,7 +163,7 @@ static void pattern_print(pattern * p) {
         }
         fprintf(stdout, "\n");
     }
-    fprintf(stdout, "hash=%x\n\n", pattern_hash(p));
+    fprintf(stdout, "hash=%x\n", pattern_hash(p));
     fflush(stdout);
 }
 
@@ -349,6 +349,7 @@ static void pattern_generate_do(pattern * p, int col, int row, int size, int ste
         (*counter)++;
         fprintf(stdout, "%d)\n", *counter);
         pattern_print(p);
+        fprintf(stdout, "\n");
     } else {
 		step--;
 		if(pattern_get(p, col - 1, row) == 0) {
@@ -420,16 +421,21 @@ int main(int argc, char **argv) {
 	for(;mode == 'g' || argc > 0; --argc, ++argv) {
 	    switch(mode) {
    	 	case 'g':
-    	    pattern_generate(steps);
+            if(steps > 0) {
+    	        pattern_generate(steps);
+            }
         	return EXIT_SUCCESS;;
     	case 'p':
 			read_and_print(*argv);
+            fprintf(stdout, "\n");
 			break;
 		case 'f':
 			read_and_fill(*argv);
+            fprintf(stdout, "\n");
 			break;
 		case 'r':
 			read_and_rectset_calc(*argv);
+            fprintf(stdout, "\n");
 			break;
 		}
 	}
