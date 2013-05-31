@@ -306,10 +306,57 @@ static void read_and_rectset_calc(const char * fname) {
     }
 }
 
+static void pattern_generate_do(pattern * p, int col, int row, int step) {
+    if(step <= 0) {
+        pattern_print(p);
+        fprintf(stdout, "\n");
+        return;
+    }
+    step--;
+    if(pattern_get(p, col - 1, row) == 0) {
+        pattern_set(p, col - 1, row, 1);
+        pattern_generate_do(p, col - 1, row, step);
+        pattern_set(p, col - 1, row, 0);
+    }
+    if(pattern_get(p, col + 1, row) == 0) {
+        pattern_set(p, col + 1, row, 1);
+        pattern_generate_do(p, col + 1, row, step);
+        pattern_set(p, col + 1, row, 0);
+    }
+    if(pattern_get(p, col, row - 1) == 0) {
+        pattern_set(p, col, row - 1, 1);
+        pattern_generate_do(p, col, row - 1, step);
+        pattern_set(p, col, row - 1, 0);
+    }
+    if(pattern_get(p, col, row + 1) == 0) {
+        pattern_set(p, col, row + 1, 1);
+        pattern_generate_do(p, col, row + 1, step);
+        pattern_set(p, col, row + 1, 0);
+    }
+    pattern_set(p, col, row, 0);
+}
+
+static void pattern_generate(int steps) {
+    const int size = steps * 2 - 1;
+    pattern * p = pattern_alloc(size, size);
+    if(p) {
+        int col = steps - 1;
+        int row = steps - 1;
+        pattern_set(p, col, row, 1);
+        pattern_generate_do(p, col, row, steps - 1);
+        pattern_free(p);
+    }
+}
+
 int main(int argc, char **argv) {
     int ch;
-    while((ch = getopt(argc, argv, "p:f:r:")) != -1) {
+    int steps;
+    while((ch = getopt(argc, argv, "p:f:r:g:")) != -1) {
         switch(ch) {
+        case 'g':
+            steps = atoi(optarg);
+            pattern_generate(steps);
+            break;
         case 'p':
             read_and_print(optarg);
             break;
@@ -322,6 +369,7 @@ int main(int argc, char **argv) {
         case '?':
         default:
             fprintf(stderr, "Invalid argument\n");
+            exit(EXIT_FAILURE);
             break;
         }
     }
