@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <errno.h>
 
 #define CHECK_BOUNDS 1
@@ -306,17 +307,23 @@ static void read_and_rectset_calc(const char * fname) {
 }
 
 int main(int argc, char **argv) {
-    if(argc < 2) {
-        fprintf(stderr, "Invalid arguments\n");
-        return EXIT_FAILURE;
-    }
-    int n;
-    for(n = 1; n < argc; ++n) {
-        //read_and_print(argv[1]);
-        //read_and_fill(argv[n]);
-        read_and_rectset_calc(argv[n]);
-        fprintf(stdout, "\n");
-        fflush(stdout);
+    int ch;
+    while((ch = getopt(argc, argv, "p:f:r:")) != -1) {
+        switch(ch) {
+        case 'p':
+            read_and_print(optarg);
+            break;
+        case 'f':
+            read_and_fill(optarg);
+            break;
+        case 'r':
+            read_and_rectset_calc(optarg);
+            break;
+        case '?':
+        default:
+            fprintf(stderr, "Invalid argument\n");
+            break;
+        }
     }
     return 0;
 }
