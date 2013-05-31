@@ -38,7 +38,7 @@ struct rectset_t {
 
 typedef struct rectset_t * rectset;
 
-rectset rectset_add(rectset r, int col, int row, int w, int h) {
+static rectset rectset_add(rectset r, int col, int row, int w, int h) {
     rectset p = (rectset)calloc(sizeof(struct rectset_t), 1);
     p->next = r;
     p->r.pos.column = col;
@@ -48,7 +48,7 @@ rectset rectset_add(rectset r, int col, int row, int w, int h) {
     return p;
 }
 
-void rectset_free(rectset r) {
+static void rectset_free(rectset r) {
     while(r) {
         rectset t = r->next;
         free(r);
@@ -56,7 +56,7 @@ void rectset_free(rectset r) {
     }
 }
 
-void rectset_print(rectset r) {
+static void rectset_print(rectset r) {
     fprintf(stdout, "(");
     while(r) {
         fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.column, r->r.pos.row, r->r.w, r->r.h);
@@ -69,7 +69,7 @@ void rectset_print(rectset r) {
     fflush(stdout);
 }
 
-pattern * pattern_alloc(int w, int h) {
+static pattern * pattern_alloc(int w, int h) {
     size_t nbytes = sizeof(pattern) + w * h * sizeof(cell_t);
     pattern * p = (pattern*)calloc(nbytes, 1);
     if(!p) {
@@ -81,11 +81,11 @@ pattern * pattern_alloc(int w, int h) {
     return p;
 }
 
-void pattern_free(pattern * p) {
+static void pattern_free(pattern * p) {
     free(p);
 }
 
-cell_t pattern_get(pattern * p, int x, int y) {
+static cell_t pattern_get(pattern * p, int x, int y) {
 #if CHECK_BOUNDS
     if(!p) {
         return 0;
@@ -98,7 +98,7 @@ cell_t pattern_get(pattern * p, int x, int y) {
     return p->data[x + y * p->w];
 }
 
-void pattern_set(pattern * p, int x, int y, cell_t v) {
+static void pattern_set(pattern * p, int x, int y, cell_t v) {
 #if CHECK_BOUNDS
     if(!p) {
         return;
@@ -111,7 +111,7 @@ void pattern_set(pattern * p, int x, int y, cell_t v) {
     p->data[x + y * p->w] = v;
 }
 
-void pattern_print(pattern * p) {
+static void pattern_print(pattern * p) {
 #if CHECK_BOUNDS
     if(!p) {
         return;
@@ -128,7 +128,7 @@ void pattern_print(pattern * p) {
     fflush(stdout);
 }
 
-int pattern_read(const char * fname, pattern ** p) {
+static int pattern_read(const char * fname, pattern ** p) {
     int rc;
     int w, h;
     int row, column;
@@ -177,7 +177,7 @@ int pattern_read(const char * fname, pattern ** p) {
     return rc;
 }
 
-void pattern_fill_do(pattern * p, pattern * r, int column, int row, int group) {
+static void pattern_fill_do(pattern * p, pattern * r, int column, int row, int group) {
     pattern_set(r, column, row, group);
 
     if(column + 1 < p->w &&
@@ -202,7 +202,7 @@ void pattern_fill_do(pattern * p, pattern * r, int column, int row, int group) {
     }
 }
 
-pattern * pattern_fill(pattern * p) {
+static pattern * pattern_fill(pattern * p) {
     int row, col, group = 0;
     pattern * r = pattern_alloc(p->w, p->h);
     if(r!=NULL) {
@@ -221,7 +221,7 @@ pattern * pattern_fill(pattern * p) {
     return r;
 }
 
-rectset rectset_calc(pattern * p) {
+static rectset rectset_calc(pattern * p) {
     int row, col, group = 0;
     rectset result = NULL;
 
@@ -276,7 +276,7 @@ rectset rectset_calc(pattern * p) {
     return result;
 }
 
-void read_and_print(const char * fname) {
+static void read_and_print(const char * fname) {
     pattern * p;
     if(pattern_read(fname, &p) == 0) {
         pattern_print(p);
@@ -284,7 +284,7 @@ void read_and_print(const char * fname) {
     }
 }
 
-void read_and_fill(const char * fname) {
+static void read_and_fill(const char * fname) {
     pattern *p, *r;
     if(pattern_read(fname, &p) == 0) {
         r = pattern_fill(p);
@@ -294,7 +294,7 @@ void read_and_fill(const char * fname) {
     }
 }
 
-void read_and_rectset_calc(const char * fname) {
+static void read_and_rectset_calc(const char * fname) {
     pattern *p;
     if(pattern_read(fname, &p) == 0) {
         rectset r = rectset_calc(p);
