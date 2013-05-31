@@ -123,7 +123,7 @@ static unsigned int pattern_hash(pattern * p) {
             if(row < min_row)
                 min_row = row;
             if(row > max_row)
-				max_row = row;
+                max_row = row;
             if(col < min_col)
                 min_col = col;
             if(col > max_col)
@@ -131,7 +131,7 @@ static unsigned int pattern_hash(pattern * p) {
         }
     }
 #if 0
-	fprintf(stdout, "min_col=%d,min_row=%d,max_col=%d,max_row=%d\n", min_col, min_row, max_col, max_row);
+    fprintf(stdout, "min_col=%d,min_row=%d,max_col=%d,max_row=%d\n", min_col, min_row, max_col, max_row);
 #endif
     max_col = max_col - min_col + 1;
     max_row = max_row - min_row + 1;
@@ -344,46 +344,100 @@ static void read_and_rectset_calc(const char * fname) {
     }
 }
 
-static void pattern_generate_do(pattern * p, int col, int row, int size, int step, int * counter) {
+static void pattern_generate_do(pattern * p, int col, int row, int step, int * counter) {
     if(step <= 0) {
         (*counter)++;
         fprintf(stdout, "%d)\n", *counter);
         pattern_print(p);
         fprintf(stdout, "\n");
     } else {
-		step--;
-		if(pattern_get(p, col - 1, row) == 0) {
-			pattern_set(p, col - 1, row, 1);
-			pattern_generate_do(p, col - 1, row, size, step, counter);
-			pattern_set(p, col - 1, row, 0);
-		}
-		if(pattern_get(p, col + 1, row) == 0) {
-			pattern_set(p, col + 1, row, 1);
-			pattern_generate_do(p, col + 1, row, size, step, counter);
-			pattern_set(p, col + 1, row, 0);
-		}
-		if(pattern_get(p, col, row - 1) == 0) {
-			pattern_set(p, col, row - 1, 1);
-			pattern_generate_do(p, col, row - 1, size, step, counter);
-			pattern_set(p, col, row - 1, 0);
-		}
-		if(pattern_get(p, col, row + 1) == 0) {
-			pattern_set(p, col, row + 1, 1);
-			pattern_generate_do(p, col, row + 1, size, step, counter);
-			pattern_set(p, col, row + 1, 0);
-		}
-	}
+        step--;
+        if(pattern_get(p, col - 1, row) == 0) {
+            pattern_set(p, col - 1, row, 1);
+            pattern_generate_do(p, col - 1, row, step, counter);
+            pattern_set(p, col - 1, row, 0);
+        }
+        if(pattern_get(p, col + 1, row) == 0) {
+            pattern_set(p, col + 1, row, 1);
+            pattern_generate_do(p, col + 1, row, step, counter);
+            pattern_set(p, col + 1, row, 0);
+        }
+        if(pattern_get(p, col, row - 1) == 0) {
+            pattern_set(p, col, row - 1, 1);
+            pattern_generate_do(p, col, row - 1, step, counter);
+            pattern_set(p, col, row - 1, 0);
+        }
+        if(pattern_get(p, col, row + 1) == 0) {
+            pattern_set(p, col, row + 1, 1);
+            pattern_generate_do(p, col, row + 1, step, counter);
+            pattern_set(p, col, row + 1, 0);
+        }
+    }
 }
 
-static void pattern_generate(int steps) {
-    const int size = steps * 2 - 1;
+static void pattern_trace_do(pattern * p, int step, int * counter) {
+    if(step <= 0) {
+        (*counter)++;
+        fprintf(stdout, "%d)\n", *counter);
+        pattern_print(p);
+        fprintf(stdout, "\n");
+    } else {
+        int col, row;
+        for(row = 0; row < p->h; ++row) {
+            for(col = 0; col < p->w; ++col) {
+                if(pattern_get(p, col, row) != 0)
+                    continue;
+                if(col > 0 && pattern_get(p, col - 1, row) != 0) {
+                    pattern_set(p, col, row, step);
+                    pattern_trace_do(p, step - 1, counter);
+                    pattern_set(p, col, row, 0);
+                    continue;
+                }
+                if(col < p->w - 1 && pattern_get(p, col + 1, row) != 0) {
+                    pattern_set(p, col, row, step);
+                    pattern_trace_do(p, step - 1, counter);
+                    pattern_set(p, col, row, 0);
+                    continue;
+                }
+                if(row > 0 && pattern_get(p, col, row - 1) != 0) {
+                    pattern_set(p, col, row, step);
+                    pattern_trace_do(p, step - 1, counter);
+                    pattern_set(p, col, row, 0);
+                    continue;
+                }
+                if(row < p->h - 1 && pattern_get(p, col, row + 1) != 0) {
+                    pattern_set(p, col, row, step);
+                    pattern_trace_do(p, step - 1, counter);
+                    pattern_set(p, col, row, 0);
+                    continue;
+                }
+            }
+        }
+    }
+}
+
+static void pattern_generate(int step) {
+    const int size = step * 2 - 1;
     pattern * p = pattern_alloc(size, size);
     if(p) {
-        int col = steps - 1;
-        int row = steps - 1;
+        int col = step - 1;
+        int row = step - 1;
         int counter = 0;
         pattern_set(p, col, row, 1);
-        pattern_generate_do(p, col, row, steps, steps - 1, &counter);
+        pattern_generate_do(p, col, row, step - 1, &counter);
+        pattern_free(p);
+    }
+}
+
+static void pattern_trace(int step) {
+    const int size = step * 2 - 1;
+    pattern * p = pattern_alloc(size, size);
+    if(p) {
+        int col = step - 1;
+        int row = step - 1;
+        int counter = 0;
+        pattern_set(p, col, row, step);
+        pattern_trace_do(p, step - 1, &counter);
         pattern_free(p);
     }
 }
@@ -392,9 +446,10 @@ int main(int argc, char **argv) {
     int ch;
     int mode = 'p';
     int steps;
-    while((ch = getopt(argc, argv, "pfrg:")) != -1) {
+    while((ch = getopt(argc, argv, "pfrg:t:")) != -1) {
         switch(ch) {
         case 'g':
+        case 't':
             steps = atoi(optarg);
             mode = ch;
             break;
@@ -415,30 +470,35 @@ int main(int argc, char **argv) {
         }
     }
 
-	argc -= optind;
-	argv += optind;
+    argc -= optind;
+    argv += optind;
 
-	for(;mode == 'g' || argc > 0; --argc, ++argv) {
-	    switch(mode) {
-   	 	case 'g':
+    for(;mode == 'g' || mode == 't' || argc > 0; --argc, ++argv) {
+        switch(mode) {
+        case 'g':
             if(steps > 0) {
-    	        pattern_generate(steps);
+                pattern_generate(steps);
             }
-        	return EXIT_SUCCESS;;
-    	case 'p':
-			read_and_print(*argv);
+            return EXIT_SUCCESS;
+        case 't':
+            if(steps > 0) {
+                pattern_trace(steps);
+            }
+            return EXIT_SUCCESS;
+        case 'p':
+            read_and_print(*argv);
             fprintf(stdout, "\n");
-			break;
-		case 'f':
-			read_and_fill(*argv);
+            break;
+        case 'f':
+            read_and_fill(*argv);
             fprintf(stdout, "\n");
-			break;
-		case 'r':
-			read_and_rectset_calc(*argv);
+            break;
+        case 'r':
+            read_and_rectset_calc(*argv);
             fprintf(stdout, "\n");
-			break;
-		}
-	}
+            break;
+        }
+    }
 
     return 0;
 }
