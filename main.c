@@ -306,34 +306,61 @@ static void read_and_rectset_calc(const char * fname) {
     }
 }
 
-static void pattern_generate_do(pattern * p, int col, int row, int step) {
+static unsigned int pattern_hash(pattern * p, int size) {
+    int row, col;
+    int min_row = p->h, min_col = p->w;
+    for(row = 0; row < p->h; ++row) {
+        for(col = 0; col < p->w; ++col) {
+            if(pattern_get(p, col, row) == 0)
+                continue;
+            if(row < min_row)
+                min_row = row;
+            if(col < min_col)
+                min_col = col;
+        }
+    }
+    unsigned result = 0;
+    for(row = min_row; row < min_row + size; ++row) {
+        for(col = min_col; col < min_col + size; ++col) {
+            if(pattern_get(p, col, row) != 0) {
+                result |= 1;
+            }
+            result <<= 1;
+        }
+    }
+    result >>= 1;
+    return result;
+}
+
+static void pattern_generate_do(pattern * p, int col, int row, int size, int step, int * counter) {
     if(step <= 0) {
+        (*counter)++;
+        fprintf(stdout, "%d)\n", *counter);
         pattern_print(p);
-        fprintf(stdout, "\n");
+        fprintf(stdout, "hash=%x\n\n", pattern_hash(p, size));
         return;
     }
     step--;
     if(pattern_get(p, col - 1, row) == 0) {
         pattern_set(p, col - 1, row, 1);
-        pattern_generate_do(p, col - 1, row, step);
+        pattern_generate_do(p, col - 1, row, size, step, counter);
         pattern_set(p, col - 1, row, 0);
     }
     if(pattern_get(p, col + 1, row) == 0) {
         pattern_set(p, col + 1, row, 1);
-        pattern_generate_do(p, col + 1, row, step);
+        pattern_generate_do(p, col + 1, row, size, step, counter);
         pattern_set(p, col + 1, row, 0);
     }
     if(pattern_get(p, col, row - 1) == 0) {
         pattern_set(p, col, row - 1, 1);
-        pattern_generate_do(p, col, row - 1, step);
+        pattern_generate_do(p, col, row - 1, size, step, counter);
         pattern_set(p, col, row - 1, 0);
     }
     if(pattern_get(p, col, row + 1) == 0) {
         pattern_set(p, col, row + 1, 1);
-        pattern_generate_do(p, col, row + 1, step);
+        pattern_generate_do(p, col, row + 1, size, step, counter);
         pattern_set(p, col, row + 1, 0);
     }
-    pattern_set(p, col, row, 0);
 }
 
 static void pattern_generate(int steps) {
@@ -342,8 +369,9 @@ static void pattern_generate(int steps) {
     if(p) {
         int col = steps - 1;
         int row = steps - 1;
+        int counter = 0;
         pattern_set(p, col, row, 1);
-        pattern_generate_do(p, col, row, steps - 1);
+        pattern_generate_do(p, col, row, steps, steps - 1, &counter);
         pattern_free(p);
     }
 }
