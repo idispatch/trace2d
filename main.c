@@ -18,7 +18,7 @@ struct pattern_t {
 typedef struct pattern_t pattern;
 
 struct coord_t {
-    int column;
+    int col;
     int row;
 };
 
@@ -42,7 +42,7 @@ typedef struct rectset_t * rectset;
 static rectset rectset_add(rectset r, int col, int row, int w, int h) {
     rectset p = (rectset)calloc(sizeof(struct rectset_t), 1);
     p->next = r;
-    p->r.pos.column = col;
+    p->r.pos.col = col;
     p->r.pos.row = row;
     p->r.w = w;
     p->r.h = h;
@@ -60,7 +60,7 @@ static void rectset_free(rectset r) {
 static void rectset_print(rectset r) {
     fprintf(stdout, "(");
     while(r) {
-        fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.column, r->r.pos.row, r->r.w, r->r.h);
+        fprintf(stdout, "[%d,%d %dx%d]", r->r.pos.col, r->r.pos.row, r->r.w, r->r.h);
         if(r->next) {
             fprintf(stdout, ",");
         }
@@ -112,27 +112,65 @@ static void pattern_set(pattern * p, int x, int y, cell_t v) {
     p->data[x + y * p->w] = v;
 }
 
+static unsigned int pattern_hash(pattern * p) {
+    int row, col;
+    int min_row = p->h, min_col = p->w;
+    int max_row = -1, max_col = -1;
+    for(row = 0; row < p->h; ++row) {
+        for(col = 0; col < p->w; ++col) {
+            if(pattern_get(p, col, row) == 0)
+                continue;
+            if(row < min_row)
+                min_row = row;
+            if(row > max_row)
+				max_row = row;
+            if(col < min_col)
+                min_col = col;
+            if(col > max_col)
+                max_col = col;
+        }
+    }
+#if 1
+	fprintf(stdout, "min_col=%d,min_row=%d,max_col=%d,max_row=%d\n", min_col, min_row, max_col, max_row);
+#endif
+    max_col = max_col - min_col + 1;
+    max_row = max_row - min_row + 1;
+    const int size = max_col > max_row ? max_col : max_row;
+    unsigned result = 0;
+    for(row = min_row; row < min_row + size; ++row) {
+        for(col = min_col; col < min_col + size; ++col) {
+            if(pattern_get(p, col, row) != 0) {
+                result |= 1;
+            }
+            result <<= 1;
+        }
+    }
+    result >>= 1;
+    return result;
+}
+
 static void pattern_print(pattern * p) {
 #if CHECK_BOUNDS
     if(!p) {
         return;
     }
 #endif
-    int row, column;
+    int row, col;
     for(row = 0; row < p->h; row++) {
-        for(column = 0; column < p->w; column++) {
-            cell_t v = pattern_get(p, column, row);
+        for(col = 0; col < p->w; col++) {
+            cell_t v = pattern_get(p, col, row);
             fprintf(stdout, "%d ", (int)v);
         }
         fprintf(stdout, "\n");
     }
+    fprintf(stdout, "hash=%x\n\n", pattern_hash(p));
     fflush(stdout);
 }
 
 static int pattern_read(const char * fname, pattern ** p) {
     int rc;
     int w, h;
-    int row, column;
+    int row, col;
     *p = NULL;
 
     FILE * fp = fopen(fname, "rb");
@@ -158,12 +196,12 @@ static int pattern_read(const char * fname, pattern ** p) {
 
         rc = 0;
         for(row = 0; row < h && rc == 0; ++row) {
-            for(column = 0; column < w && rc == 0; ++column) {
+            for(col = 0; col < w && rc == 0; ++col) {
                 cell_t c;
                 if(1 != fscanf(fp, "%d", (int*)&c)) {
                     rc = -1;
                 } else {
-                    pattern_set(*p, column, row, c);
+                    pattern_set(*p, col, row, c);
                 }
             }
         }
@@ -178,28 +216,28 @@ static int pattern_read(const char * fname, pattern ** p) {
     return rc;
 }
 
-static void pattern_fill_do(pattern * p, pattern * r, int column, int row, int group) {
-    pattern_set(r, column, row, group);
+static void pattern_fill_do(pattern * p, pattern * r, int col, int row, int group) {
+    pattern_set(r, col, row, group);
 
-    if(column + 1 < p->w &&
-       pattern_get(p, column + 1, row) != 0 &&
-       pattern_get(r, column + 1, row) == 0) {
-        pattern_fill_do(p, r, column + 1, row, group);
+    if(col + 1 < p->w &&
+       pattern_get(p, col + 1, row) != 0 &&
+       pattern_get(r, col + 1, row) == 0) {
+        pattern_fill_do(p, r, col + 1, row, group);
     }
-    if(column - 1 >= 0 &&
-       pattern_get(p, column - 1, row) != 0 &&
-       pattern_get(r, column - 1, row) == 0) {
-        pattern_fill_do(p, r, column - 1, row, group);
+    if(col - 1 >= 0 &&
+       pattern_get(p, col - 1, row) != 0 &&
+       pattern_get(r, col - 1, row) == 0) {
+        pattern_fill_do(p, r, col - 1, row, group);
     }
     if(row + 1 < p->h &&
-       pattern_get(p, column, row + 1) != 0 &&
-       pattern_get(r, column, row + 1) == 0) {
-        pattern_fill_do(p, r, column, row + 1, group);
+       pattern_get(p, col, row + 1) != 0 &&
+       pattern_get(r, col, row + 1) == 0) {
+        pattern_fill_do(p, r, col, row + 1, group);
     }
     if(row - 1 >= 0 &&
-       pattern_get(p, column, row - 1) != 0 &&
-       pattern_get(r, column, row - 1) == 0) {
-        pattern_fill_do(p, r, column, row - 1, group);
+       pattern_get(p, col, row - 1) != 0 &&
+       pattern_get(r, col, row - 1) == 0) {
+        pattern_fill_do(p, r, col, row - 1, group);
     }
 }
 
@@ -306,61 +344,34 @@ static void read_and_rectset_calc(const char * fname) {
     }
 }
 
-static unsigned int pattern_hash(pattern * p, int size) {
-    int row, col;
-    int min_row = p->h, min_col = p->w;
-    for(row = 0; row < p->h; ++row) {
-        for(col = 0; col < p->w; ++col) {
-            if(pattern_get(p, col, row) == 0)
-                continue;
-            if(row < min_row)
-                min_row = row;
-            if(col < min_col)
-                min_col = col;
-        }
-    }
-    unsigned result = 0;
-    for(row = min_row; row < min_row + size; ++row) {
-        for(col = min_col; col < min_col + size; ++col) {
-            if(pattern_get(p, col, row) != 0) {
-                result |= 1;
-            }
-            result <<= 1;
-        }
-    }
-    result >>= 1;
-    return result;
-}
-
 static void pattern_generate_do(pattern * p, int col, int row, int size, int step, int * counter) {
     if(step <= 0) {
         (*counter)++;
         fprintf(stdout, "%d)\n", *counter);
         pattern_print(p);
-        fprintf(stdout, "hash=%x\n\n", pattern_hash(p, size));
-        return;
-    }
-    step--;
-    if(pattern_get(p, col - 1, row) == 0) {
-        pattern_set(p, col - 1, row, 1);
-        pattern_generate_do(p, col - 1, row, size, step, counter);
-        pattern_set(p, col - 1, row, 0);
-    }
-    if(pattern_get(p, col + 1, row) == 0) {
-        pattern_set(p, col + 1, row, 1);
-        pattern_generate_do(p, col + 1, row, size, step, counter);
-        pattern_set(p, col + 1, row, 0);
-    }
-    if(pattern_get(p, col, row - 1) == 0) {
-        pattern_set(p, col, row - 1, 1);
-        pattern_generate_do(p, col, row - 1, size, step, counter);
-        pattern_set(p, col, row - 1, 0);
-    }
-    if(pattern_get(p, col, row + 1) == 0) {
-        pattern_set(p, col, row + 1, 1);
-        pattern_generate_do(p, col, row + 1, size, step, counter);
-        pattern_set(p, col, row + 1, 0);
-    }
+    } else {
+		step--;
+		if(pattern_get(p, col - 1, row) == 0) {
+			pattern_set(p, col - 1, row, 1);
+			pattern_generate_do(p, col - 1, row, size, step, counter);
+			pattern_set(p, col - 1, row, 0);
+		}
+		if(pattern_get(p, col + 1, row) == 0) {
+			pattern_set(p, col + 1, row, 1);
+			pattern_generate_do(p, col + 1, row, size, step, counter);
+			pattern_set(p, col + 1, row, 0);
+		}
+		if(pattern_get(p, col, row - 1) == 0) {
+			pattern_set(p, col, row - 1, 1);
+			pattern_generate_do(p, col, row - 1, size, step, counter);
+			pattern_set(p, col, row - 1, 0);
+		}
+		if(pattern_get(p, col, row + 1) == 0) {
+			pattern_set(p, col, row + 1, 1);
+			pattern_generate_do(p, col, row + 1, size, step, counter);
+			pattern_set(p, col, row + 1, 0);
+		}
+	}
 }
 
 static void pattern_generate(int steps) {
@@ -378,22 +389,22 @@ static void pattern_generate(int steps) {
 
 int main(int argc, char **argv) {
     int ch;
+    int mode = 'p';
     int steps;
-    while((ch = getopt(argc, argv, "p:f:r:g:")) != -1) {
+    while((ch = getopt(argc, argv, "pfrg:")) != -1) {
         switch(ch) {
         case 'g':
             steps = atoi(optarg);
-            pattern_generate(steps);
+            mode = ch;
             break;
         case 'p':
-            read_and_print(optarg);
+            mode = ch;
             break;
         case 'f':
-            read_and_fill(optarg);
+            mode = ch;
             break;
         case 'r':
-            read_and_rectset_calc(optarg);
-            break;
+            mode = ch;
         case '?':
         default:
             fprintf(stderr, "Invalid argument\n");
@@ -401,6 +412,27 @@ int main(int argc, char **argv) {
             break;
         }
     }
+
+	argc -= optind;
+	argv += optind;
+
+	for(;mode == 'g' || argc > 0; --argc, ++argv) {
+	    switch(mode) {
+   	 	case 'g':
+    	    pattern_generate(steps);
+        	return EXIT_SUCCESS;;
+    	case 'p':
+			read_and_print(*argv);
+			break;
+		case 'f':
+			read_and_fill(*argv);
+			break;
+		case 'r':
+			read_and_rectset_calc(*argv);
+			break;
+		}
+	}
+
     return 0;
 }
 
